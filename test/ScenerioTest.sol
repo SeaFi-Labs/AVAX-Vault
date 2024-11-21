@@ -36,6 +36,7 @@ contract WAVAXVaultTest2 is Test {
         address nodeOp2 = address(0x888);
         address randomUser1 = address(0x777);
         address randomUser2 = address(0x666);
+        address ramdomUser3 = address(0x555);
 
         // Transfer tokens to users
         WAVAX.transfer(randomUser1, 10000e18);
@@ -83,7 +84,13 @@ contract WAVAXVaultTest2 is Test {
         uint256 randomUser2InitialDeposit = 10000e18;
         WAVAX.approve(address(vault), randomUser2InitialDeposit);
         vault.deposit(randomUser2InitialDeposit, randomUser2);
-        uint256 totalDeposits = randomUser1InitialDeposit + randomUser2InitialDeposit;
+
+        vm.stopPrank();
+
+        vm.startPrank(ramdomUser3);
+        uint256 randomUser3InitialDeposit = 1e18;
+        vault.depositNative{value: randomUser3InitialDeposit}(ramdomUser3);
+        uint256 totalDeposits = randomUser1InitialDeposit + randomUser2InitialDeposit + randomUser3InitialDeposit;
         assertEq(vault.totalAssets(), totalDeposits, "Total vault assets should match sum of User1 and User2 deposits");
         vm.stopPrank();
 
