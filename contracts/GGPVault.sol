@@ -10,6 +10,11 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
+interface IWAVAX {
+    function deposit() external payable;
+    function withdraw(uint256) external;
+}
+
 /// @title WAVAXVault
 /// @notice This contract implements a vault for staking WAVAX tokens, offering functionalities to stake tokens,
 ///         distribute rewards, and manage deposits from staking with a focus on access control and upgradeability.
@@ -32,7 +37,7 @@ contract WAVAXVault is
     event DepositedFromStaking(address indexed caller, uint256 amount);
     event RewardsDistributed(uint256 amount);
 
-    address public WAVAXStorage;
+    address public WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
     uint256 public stakingTotalAssets;
     uint256 public AVAXCap;
     uint256 public targetAPR;
@@ -54,11 +59,10 @@ contract WAVAXVault is
 
     /// @notice Initializes the vault with necessary parameters and settings.
     /// @dev Sets up ERC20 token details, initializes inherited contracts, sets the initial owner, AVAXCap, and targetAPR.
-    /// @param _underlying The address of the WAVAX token contract.
     /// @param _initialOwner The address that will be granted initial ownership of the vault.
-    function initialize(address _underlying, address _initialOwner) external initializer {
+    function initialize(address _initialOwner) external initializer {
         __ERC20_init("SeaFi AVAX Vault", "xAVAX");
-        __ERC4626_init(IERC20(_underlying));
+        __ERC4626_init(IERC20(WAVAX));
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
         __AccessControl_init();
@@ -81,6 +85,35 @@ contract WAVAXVault is
     function setTargetAPR(uint256 target) external onlyOwner {
         targetAPR = target;
         emit TargetAPRUpdated(targetAPR);
+    }
+
+    function depositNative(address receiver) external payable returns (uint256) {
+        require(msg.value > 0, "No AVAX sent");
+
+        // Convert AVAX to WAVAX
+        IWAVAX(WAVAX).deposit{value: msg.value}();
+
+        // Deposit WAVAX into the vault
+        uint256 shares = deposit(msg.value, receiver);
+
+        return shares;
+    }
+
+    function redeemNative(uint256 shares, address receiver, address owner) public returns (uint256) {
+        require(receiver != address(0), "Invalid receiver");
+        require(shares > 0, "No shares to redeem");
+
+        // Call the existing redeem function to withdraw WAVAX
+        uint256 assets = redeem(shares, address(this), owner);
+
+        // Unwrap WAVAX into AVAX
+        IWAVAX(WAVAX).withdraw(assets);
+
+        // Transfer AVAX to the receiver
+        (bool success,) = receiver.call{value: assets}("");
+        require(success, "AVAX transfer failed");
+
+        return assets;
     }
 
     /// @notice Stakes a specified amount on behalf of a node operator.
@@ -207,4 +240,12 @@ contract WAVAXVault is
     /// @dev Ensures that only the owner can authorize upgrades to the contract.
     /// @param newImplementation The address of the new contract implementation.
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    receive() external payable {
+        // Allow contract to receive AVAX
+    }
+
+    fallback() external payable {
+        // Optional: fallback to handle unexpected AVAX transfers
+    }
 }
