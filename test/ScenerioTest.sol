@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
 import "forge-std/console.sol";
-import {GGPVault} from "../contracts/GGPVault.sol";
+import {AVAXVault} from "../contracts/AVAXVault.sol";
 import {MockTokenGGP} from "./mocks/MockTokenGGP.sol";
 import {MockStaking} from "./mocks/MockStaking.sol";
 import {MockStorage} from "./mocks/MockStorage.sol";
