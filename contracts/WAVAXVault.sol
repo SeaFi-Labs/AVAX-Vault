@@ -33,7 +33,8 @@ contract WAVAXVault is
     event DepositedFromStaking(address indexed caller, uint256 amount);
     event RewardsDistributed(uint256 amount);
 
-    address public WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
+    // address public WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
+    IWAVAX public underlying;
     uint256 public stakingTotalAssets;
     uint256 public AVAXCap;
     uint256 public targetAPR;
@@ -56,9 +57,9 @@ contract WAVAXVault is
     /// @notice Initializes the vault with necessary parameters and settings.
     /// @dev Sets up ERC20 token details, initializes inherited contracts, sets the initial owner, AVAXCap, and targetAPR.
     /// @param _initialOwner The address that will be granted initial ownership of the vault.
-    function initialize(address _initialOwner) external initializer {
+    function initialize(address _underlying, address _initialOwner) external initializer {
         __ERC20_init("SeaFi AVAX Vault", "xAVAX");
-        __ERC4626_init(IERC20(WAVAX));
+        __ERC4626_init(IERC20(_underlying));
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
         __AccessControl_init();
@@ -87,7 +88,7 @@ contract WAVAXVault is
         require(msg.value > 0, "No AVAX sent");
 
         // Convert AVAX to WAVAX
-        IWAVAX(WAVAX).deposit{value: msg.value}();
+        IWAVAX(underlying).deposit{value: msg.value}();
 
         // Deposit WAVAX into the vault
         uint256 shares = deposit(msg.value, receiver);
@@ -103,7 +104,7 @@ contract WAVAXVault is
         uint256 assets = redeem(shares, address(this), owner);
 
         // Unwrap WAVAX into AVAX
-        IWAVAX(WAVAX).withdraw(assets);
+        IWAVAX(underlying).withdraw(assets);
 
         // Transfer AVAX to the receiver
         (bool success,) = receiver.call{value: assets}("");
