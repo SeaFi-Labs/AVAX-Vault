@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.20;
 
-import {GGPVault} from "../../contracts/GGPVault.sol";
+import {WAVAXVault} from "../../contracts/WAVAXVault.sol";
 
 /// @custom:oz-upgrades-from GGPVault
-contract GGPVaultV2 is GGPVault {
+contract AVAXVaultV2 is WAVAXVault {
     function newMethod() public pure returns (string memory) {
         return "meow";
     }

@@ -1,18 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {GGPVault} from "../contracts/GGPVault.sol";
-import {MockTokenGGP} from "../test/mocks/MockTokenGGP.sol";
-import {MockStaking} from "../test/mocks/MockStaking.sol";
-import {MockStorage} from "../test/mocks/MockStorage.sol";
+import {WAVAXVault} from "../contracts/WAVAXVault.sol";
+import {MockTokenWAVAX} from "../test/mocks/MockTokenWAVAX.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import "forge-std/Script.sol";
 
 contract MyScript is Script {
-    MockTokenGGP public ggpToken;
-    MockStaking public mockStaking;
-    MockStorage public mockStorage;
-    GGPVault vault;
+    MockTokenWAVAX public ggpToken;
+    WAVAXVault vault;
 
     function run() external {
         address devAddress4 = 0xcafea1A2c9F4Af0Aaf1d5C4913cb8BA4bf0F9842;
@@ -23,12 +19,9 @@ contract MyScript is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        ggpToken = new MockTokenGGP(devAddress4);
-        mockStaking = new MockStaking(ggpToken);
-        mockStorage = new MockStorage();
-        mockStorage.setAddress(keccak256(abi.encodePacked("contract.address", "Staking")), address(mockStaking));
+        ggpToken = new MockTokenWAVAX(devAddress4);
         Upgrades.deployUUPSProxy(
-            "GGPVault.sol", abi.encodeCall(GGPVault.initialize, (address(ggpToken), address(mockStorage), devAddress4))
+            "WAVAXVault.sol", abi.encodeCall(WAVAXVault.initialize, (address(ggpToken), devAddress4))
         );
 
         ggpToken.transfer(devAddress1, 10000e18);
