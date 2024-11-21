@@ -1,21 +1,23 @@
 [profile.default]
-src = 'src'
-out = 'out'
+extra_solc_versions = ["0.4.22"] # Add older versions you need
 libs = ['lib']
+out = 'out'
 solc = "0.8.20"
+src = 'src'
+
 build_info = true
 extra_output = ["storageLayout"]
 
 [profile.networks.fuji]
-rpc_url = "https://api.avax-test.network/ext/bc/C/rpc"
 chain_id = 43113
+rpc_url = "https://api.avax-test.network/ext/bc/C/rpc"
 
 [profile.networks.avax]
-rpc_url = "https://api.avax.network/ext/bc/C/rpc"
 chain_id = 43114
+rpc_url = "https://api.avax.network/ext/bc/C/rpc"
 
 [rpc_endpoints]
-fuji = "https://api.avax-test.network/ext/bc/C/rpc"
 axax = "https://api.avax.network/ext/bc/C/rpc"
+fuji = "https://api.avax-test.network/ext/bc/C/rpc"
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
