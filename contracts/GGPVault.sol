@@ -36,6 +36,7 @@ contract WAVAXVault is
     uint256 public stakingTotalAssets;
     uint256 public AVAXCap;
     uint256 public targetAPR;
+    uint256 public lastRewardUpdate; // Timestamp of the last reward update
 
     /// @notice Restricts functions to the contract owner or approved node operators only.
     modifier onlyOwnerOrApprovedNodeOperator() {
@@ -56,15 +57,15 @@ contract WAVAXVault is
     /// @param _underlying The address of the WAVAX token contract.
     /// @param _initialOwner The address that will be granted initial ownership of the vault.
     function initialize(address _underlying, address _initialOwner) external initializer {
-        __ERC20_init("SeaFi Avax Vault", "xAVAX");
+        __ERC20_init("SeaFi AVAX Vault", "xAVAX");
         __ERC4626_init(IERC20(_underlying));
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
         __AccessControl_init();
         _transferOwnership(_initialOwner);
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
-        AVAXCap = 10000e18; // Starting asset cap
-        targetAPR = 1837; // Starting target APR
+        AVAXCap = 20000e18; // Starting asset cap
+        targetAPR = 1405; // Starting target APR
         stakingTotalAssets = 0;
     }
 
@@ -82,25 +83,12 @@ contract WAVAXVault is
         emit TargetAPRUpdated(targetAPR);
     }
 
-    /// @notice Stakes a specified amount on behalf of a node operator and distributes staking rewards.
-    /// @param nodeOp The address of the node operator on whose behalf the staking is done.
-    function stakeAndDistributeRewards(address nodeOp) external onlyOwnerOrApprovedNodeOperator {
-        uint256 currentBalance = getUnderlyingBalance();
-        // TODO just have this take 100% of the WAVAX in the vault and it can't be frontrun
-        _stakeOnNode(currentBalance, nodeOp); // this MUST be called before _distributeRewards
-        _distributeRewards();
-    }
-
     /// @notice Stakes a specified amount on behalf of a node operator.
     /// @param amount The amount of WAVAX tokens to stake.
     /// @param nodeOp The address of the node operator on whose behalf the staking is done.
     function stakeOnNode(uint256 amount, address nodeOp) external onlyOwnerOrApprovedNodeOperator {
+        _updateRewards();
         _stakeOnNode(amount, nodeOp);
-    }
-
-    /// @notice Distributes staking rewards based on the current staked amount and target APR.
-    function distributeRewards() external onlyOwnerOrApprovedNodeOperator {
-        _distributeRewards();
     }
 
     /// @notice Allows depositing tokens back into the vault from staking, adjusting the staking total assets accordingly.
@@ -110,6 +98,7 @@ contract WAVAXVault is
             revert("Cant deposit more than the stakingTotalAssets");
         }
         stakingTotalAssets -= amount;
+        _updateRewards();
         emit DepositedFromStaking(_msgSender(), amount);
         IERC20(asset()).safeTransferFrom(_msgSender(), address(this), amount);
     }
@@ -118,6 +107,15 @@ contract WAVAXVault is
     /// @return The total assets under management in the vault.
     function totalAssets() public view override returns (uint256) {
         return stakingTotalAssets + getUnderlyingBalance();
+    }
+
+    function getPendingRewards() public view returns (uint256) {
+        if (block.timestamp > lastRewardUpdate) {
+            uint256 timeElapsed = block.timestamp - lastRewardUpdate;
+            uint256 newRewards = (stakingTotalAssets * targetAPR * timeElapsed) / (10000 * 365 days);
+            return newRewards;
+        }
+        return 0;
     }
 
     /// @notice Calculates the maximum deposit amount for a given address, respecting the AVAXCap.
@@ -192,15 +190,18 @@ contract WAVAXVault is
     function _stakeOnNode(uint256 amount, address nodeOp) internal {
         _checkRole(APPROVED_NODE_OPERATOR, nodeOp);
         stakingTotalAssets += amount;
-
+        IERC20(asset()).safeTransfer(nodeOp, amount); // TODO MAKE SURE THIS IS GOOD
         emit WithdrawnForStaking(nodeOp, amount);
     }
 
-    /// @dev Internal function to distribute rewards based on the staked amount and target APR.
-    function _distributeRewards() internal {
-        uint256 rewardAmount = getRewardsBasedOnCurrentStakedAmount();
-        stakingTotalAssets += rewardAmount;
-        emit RewardsDistributed(rewardAmount);
+    function _updateRewards() internal {
+        // TODO make sure this logic works correctly
+        if (block.timestamp > lastRewardUpdate) {
+            uint256 timeElapsed = block.timestamp - lastRewardUpdate;
+            uint256 newRewards = (totalAssets() * targetAPR * timeElapsed) / (10000 * 365 days);
+            stakingTotalAssets += newRewards; // Increase total assets
+            lastRewardUpdate = block.timestamp;
+        }
     }
 
     /// @dev Ensures that only the owner can authorize upgrades to the contract.
