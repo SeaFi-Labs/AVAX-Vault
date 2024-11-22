@@ -110,8 +110,14 @@ contract WAVAXVaultTest2 is Test {
         // // Stake and distribute rewards
         vm.startPrank(address(0x69));
         uint256 amountToStake = vault.totalAssets();
-        vault.stakeOnNode(amountToStake, nodeOp1);
 
+        // for stack to deep errors
+        address _nodeOp1 = nodeOp1;
+
+        uint256 startingBalance = WAVAX.balanceOf(address(_nodeOp1));
+        vault.stakeOnNode(amountToStake, _nodeOp1);
+        uint256 endingBalance = WAVAX.balanceOf(address(_nodeOp1));
+        assertEq(endingBalance - startingBalance, amountToStake, "NodeOp1 should receive the staked amount");
         address _randomUser2 = randomUser2;
 
         assertEq(
@@ -119,9 +125,6 @@ contract WAVAXVaultTest2 is Test {
             vault.maxDeposit(_randomUser2),
             "Mint and Deposit should be the same before ratio changes"
         );
-
-        // for stack to deep errors
-        address _nodeOp1 = nodeOp1;
 
         vm.warp(block.timestamp + 30 days);
         uint256 BASIS_POINTS_DIVISOR = 10000;
@@ -149,7 +152,6 @@ contract WAVAXVaultTest2 is Test {
         // Assert that pending rewards are reset to 0 after updateRewards is called
         assertEq(vault.getPendingRewards(), 0, "Pending rewards should be 0 after updateRewards");
 
-        console.log(amountToStake, thirtyDayYield);
         assertApproxEqAbs(
             amountToStake + thirtyDayYield,
             vault.stakingTotalAssets(),
@@ -187,12 +189,5 @@ contract WAVAXVaultTest2 is Test {
             vault.getUnderlyingBalance(), thirtyDayYield, 100, "Correct amount of assets are in the vault"
         );
         assertApproxEqAbs(vault.stakingTotalAssets(), amountToStake, 100, "Correct amount of assets are being staked");
-
-        // console.log(
-        //     vault.maxMint(_randomUser2),
-        //     vault.maxDeposit(_randomUser2),
-        //     vault.maxRedeem(_randomUser2),
-        //     vault.maxWithdraw(_randomUser2)
-        // );
     }
 }

@@ -89,6 +89,10 @@ contract WAVAXVault is
         emit TargetAPRUpdated(targetAPR);
     }
 
+    /// @notice Deposits AVAX into the vault in exchange for shares.
+    /// @dev Converts the deposited AVAX to WAVAX and mints the corresponding shares to the caller.
+    ///      Ensures the deposit does not exceed the maximum allowed assets or result in zero shares.
+    /// @return shares The number of shares minted for the deposit
     function depositAVAX() public payable returns (uint256 shares) {
         uint256 assets = msg.value;
 
@@ -109,6 +113,11 @@ contract WAVAXVault is
         return shares;
     }
 
+    // @notice Redeems shares for AVAX from the vault.
+    /// @dev Burns the specified number of shares and withdraws the corresponding AVAX balance.
+    ///      Ensures the redeem request does not exceed the maximum redeemable shares.
+    /// @param shares The number of shares to redeem.
+    /// @return assets The amount of AVAX withdrawn in exchange for the redeemed shares.
     function redeemAVAX(uint256 shares) public returns (uint256 assets) {
         uint256 maxShares = maxRedeem(_msgSender());
         if (shares > maxShares) {
@@ -136,6 +145,8 @@ contract WAVAXVault is
         _stakeOnNode(amount, nodeOp);
     }
 
+    /// @notice Updates the rewards based on the time elapsed since the last update.
+    /// @dev Adds the calculated pending rewards to the total staking assets and updates the timestamp.
     function updateRewards() external onlyOwnerOrApprovedNodeOperator {
         _updateRewards();
     }
@@ -243,6 +254,8 @@ contract WAVAXVault is
         emit WithdrawnForStaking(nodeOp, amount);
     }
 
+    /// @notice Internal function to update the rewards based on the time elapsed since the last update.
+    /// @dev Adjusts the `stakingTotalAssets` to include the pending rewards and updates the last reward timestamp.
     function _updateRewards() internal {
         uint256 newRewards = getPendingRewards();
         stakingTotalAssets += newRewards; // Increase total assets
