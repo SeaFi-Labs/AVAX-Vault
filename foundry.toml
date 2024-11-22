@@ -1,5 +1,4 @@
 [profile.default]
-extra_solc_versions = ["0.4.22"] # Add older versions you need
 libs = ['lib']
 out = 'out'
 solc = "0.8.20"
