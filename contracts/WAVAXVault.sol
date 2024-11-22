@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.20;
 
+import "forge-std/console.sol";
+
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -34,7 +36,7 @@ contract WAVAXVault is
     event RewardsDistributed(uint256 amount);
 
     // address public WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
-    IWAVAX public underlying;
+    IWAVAX public WAVAX;
     uint256 public stakingTotalAssets;
     uint256 public AVAXCap;
     uint256 public targetAPR;
@@ -57,9 +59,9 @@ contract WAVAXVault is
     /// @notice Initializes the vault with necessary parameters and settings.
     /// @dev Sets up ERC20 token details, initializes inherited contracts, sets the initial owner, AVAXCap, and targetAPR.
     /// @param _initialOwner The address that will be granted initial ownership of the vault.
-    function initialize(address _underlying, address _initialOwner) external initializer {
+    function initialize(address _wavax, address _initialOwner) external initializer {
         __ERC20_init("SeaFi AVAX Vault", "xAVAX");
-        __ERC4626_init(IERC20(_underlying));
+        __ERC4626_init(IERC20(_wavax));
         __UUPSUpgradeable_init();
         __Ownable2Step_init();
         __AccessControl_init();
@@ -68,6 +70,7 @@ contract WAVAXVault is
         AVAXCap = 20000e18; // Starting asset cap
         targetAPR = 1405; // Starting target APR
         stakingTotalAssets = 0;
+        WAVAX = IWAVAX(_wavax);
     }
 
     /// @notice Sets the maximum cap for WAVAX deposits in the vault.
@@ -84,34 +87,30 @@ contract WAVAXVault is
         emit TargetAPRUpdated(targetAPR);
     }
 
-    function depositNative(address receiver) external payable returns (uint256) {
-        require(msg.value > 0, "No AVAX sent");
+    function depositNative() external payable returns (uint256) {
+        console.log("ran", msg.value);
+        WAVAX.deposit{value: msg.value}(); // this sends the avax from the contract and the contract gets wAVAX
+        console.log("ran2");
 
-        // Convert AVAX to WAVAX
-        IWAVAX(underlying).deposit{value: msg.value}();
-
-        // Deposit WAVAX into the vault
-        uint256 shares = deposit(msg.value, receiver);
-
-        return shares;
+        return 0;
     }
 
-    function redeemNative(uint256 shares, address receiver, address owner) public returns (uint256) {
-        require(receiver != address(0), "Invalid receiver");
-        require(shares > 0, "No shares to redeem");
+    // function redeemNative(uint256 shares, address receiver, address owner) public returns (uint256) {
+    //     require(receiver != address(0), "Invalid receiver");
+    //     require(shares > 0, "No shares to redeem");
 
-        // Call the existing redeem function to withdraw WAVAX
-        uint256 assets = redeem(shares, address(this), owner);
+    //     // Call the existing redeem function to withdraw WAVAX
+    //     uint256 assets = redeem(shares, address(this), owner);
 
-        // Unwrap WAVAX into AVAX
-        IWAVAX(underlying).withdraw(assets);
+    //     // Unwrap WAVAX into AVAX
+    //     IWAVAX(underlying).withdraw(assets);
 
-        // Transfer AVAX to the receiver
-        (bool success,) = receiver.call{value: assets}("");
-        require(success, "AVAX transfer failed");
+    //     // Transfer AVAX to the receiver
+    //     (bool success,) = receiver.call{value: assets}("");
+    //     require(success, "AVAX transfer failed");
 
-        return assets;
-    }
+    //     return assets;
+    // }
 
     /// @notice Stakes a specified amount on behalf of a node operator.
     /// @param amount The amount of WAVAX tokens to stake.
@@ -237,12 +236,4 @@ contract WAVAXVault is
     /// @dev Ensures that only the owner can authorize upgrades to the contract.
     /// @param newImplementation The address of the new contract implementation.
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
-
-    receive() external payable {
-        // Allow contract to receive AVAX
-    }
-
-    fallback() external payable {
-        // Optional: fallback to handle unexpected AVAX transfers
-    }
 }
