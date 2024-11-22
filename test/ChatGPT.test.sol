@@ -405,4 +405,150 @@ contract AVAXVaultTest is Test {
         );
         assertEq(vault.balanceOf(randomUser1), 0, "User shares should be zero after redeeming all shares");
     }
+
+    function testDepositAVAXDoesNotImpactRegularDeposit() public {
+        uint256 tokenDepositAmount = 10 ether; // Token deposit
+        uint256 avaxDepositAmount = 5 ether; // AVAX deposit
+
+        // Fund the contract with AVAX and tokens
+        vm.deal(address(this), avaxDepositAmount);
+
+        // Regular deposit
+        WAVAX.approve(address(vault), tokenDepositAmount);
+        uint256 tokenShares = vault.deposit(tokenDepositAmount, address(this));
+        assertEq(vault.balanceOf(address(this)), tokenShares, "Token shares should match deposit");
+
+        // AVAX deposit
+        uint256 avaxShares = vault.depositAVAX{value: avaxDepositAmount}();
+        assertEq(vault.balanceOf(address(this)), tokenShares + avaxShares, "Total shares should include AVAX deposit");
+
+        // Verify vault balance
+        assertEq(
+            vault.totalAssets(), tokenDepositAmount + avaxDepositAmount, "Total assets should reflect both deposits"
+        );
+    }
+
+    function testRedeemAVAXDoesNotImpactRegularRedeem() public {
+        uint256 tokenDepositAmount = 10 ether; // Token deposit
+        uint256 avaxDepositAmount = 5 ether; // AVAX deposit
+        address randomUser1 = address(0x777);
+        WAVAX.transfer(randomUser1, tokenDepositAmount);
+        vm.startPrank(randomUser1);
+
+        // Fund the contract with AVAX and tokens
+        vm.deal(randomUser1, avaxDepositAmount);
+
+        // Perform deposits
+        WAVAX.approve(address(vault), tokenDepositAmount);
+        uint256 tokenShares = vault.deposit(tokenDepositAmount, randomUser1);
+        uint256 avaxShares = vault.depositAVAX{value: avaxDepositAmount}();
+
+        // Redeem token shares
+        uint256 tokenAssets = vault.redeem(tokenShares, randomUser1, randomUser1);
+        assertEq(tokenAssets, tokenDepositAmount, "Redeemed token assets should match deposit");
+
+        // Redeem AVAX shares
+        uint256 avaxAssets = vault.redeemAVAX(avaxShares);
+        assertEq(avaxAssets, avaxDepositAmount, "Redeemed AVAX assets should match deposit");
+
+        // Verify total assets are zero
+        assertEq(vault.totalAssets(), 0, "Total assets should be zero after all redemptions");
+    }
+
+    function testDepositAVAXRevertsWhenCapExceeded() public {
+        uint256 avaxCap = 10 ether;
+        vault.setAVAXCap(avaxCap);
+
+        vm.deal(address(this), avaxCap + 1 ether);
+        vm.expectRevert();
+        vault.depositAVAX{value: avaxCap + 1 ether}();
+    }
+
+    function testRedeemAVAXFailsIfNoShares() public {
+        uint256 depositAmount = 10 ether;
+        vm.deal(address(this), depositAmount);
+
+        vm.expectRevert();
+        vault.redeemAVAX(1 ether);
+    }
+
+    function testDepositAndRedeemAVAXMultipleUsers() public {
+        address user1 = address(0x111);
+        address user2 = address(0x222);
+
+        uint256 user1Deposit = 7 ether;
+        uint256 user2Deposit = 5 ether;
+
+        // Fund users
+        vm.deal(user1, user1Deposit);
+        vm.deal(user2, user2Deposit);
+
+        // User 1 deposits
+        vm.startPrank(user1);
+        uint256 user1Shares = vault.depositAVAX{value: user1Deposit}();
+        assertEq(vault.balanceOf(user1), user1Shares, "User 1 shares should match deposit");
+        vm.stopPrank();
+
+        // User 2 deposits
+        vm.startPrank(user2);
+        uint256 user2Shares = vault.depositAVAX{value: user2Deposit}();
+        assertEq(vault.balanceOf(user2), user2Shares, "User 2 shares should match deposit");
+        vm.stopPrank();
+
+        // Check total assets in vault
+        assertEq(vault.totalAssets(), user1Deposit + user2Deposit, "Total assets should reflect both deposits");
+
+        // Users redeem their shares
+        vm.startPrank(user1);
+        uint256 user1Assets = vault.redeemAVAX(user1Shares);
+        assertEq(user1Assets, user1Deposit, "User 1 assets should match redeemed amount");
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        uint256 user2Assets = vault.redeemAVAX(user2Shares);
+        assertEq(user2Assets, user2Deposit, "User 2 assets should match redeemed amount");
+        vm.stopPrank();
+
+        // Check final vault state
+        assertEq(vault.totalAssets(), 0, "Total assets should be zero after all redemptions");
+        assertEq(vault.balanceOf(user1), 0, "User 1 shares should be zero after redemption");
+        assertEq(vault.balanceOf(user2), 0, "User 2 shares should be zero after redemption");
+    }
+
+    function testDepositAVAXWithLowCap() public {
+        uint256 avaxCap = 5 ether;
+        uint256 depositAmount = 10 ether;
+
+        vault.setAVAXCap(avaxCap);
+        vm.deal(address(this), depositAmount);
+
+        vm.expectRevert();
+        vault.depositAVAX{value: depositAmount}();
+
+        uint256 validDeposit = avaxCap;
+        uint256 shares = vault.depositAVAX{value: validDeposit}();
+        assertEq(shares, validDeposit, "Shares should match valid deposit amount");
+        assertEq(vault.totalAssets(), validDeposit, "Total assets should reflect valid deposit");
+    }
+
+    function testPartialRedeemAVAX() public {
+        address randomUser1 = address(0x777);
+        vm.startPrank(randomUser1);
+        uint256 depositAmount = 10 ether;
+
+        vm.deal(randomUser1, depositAmount);
+
+        // Deposit AVAX
+        uint256 shares = vault.depositAVAX{value: depositAmount}();
+
+        // Redeem half of the shares
+        uint256 halfShares = shares / 2;
+        uint256 assets = vault.redeemAVAX(halfShares);
+        uint256 expectedAssets = depositAmount / 2;
+
+        assertEq(assets, expectedAssets, "Redeemed assets should match half of the deposit");
+        assertEq(
+            vault.balanceOf(randomUser1), shares - halfShares, "Remaining shares should match after partial redemption"
+        );
+    }
 }
