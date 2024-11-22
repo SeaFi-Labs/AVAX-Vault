@@ -81,37 +81,31 @@ contract WAVAXVaultTest2 is Test {
 
         // Deposit from randomUser2
         vm.startPrank(randomUser2);
+
         uint256 randomUser2InitialDeposit = 10000e18;
-        WAVAX.approve(address(vault), randomUser2InitialDeposit);
-        vault.deposit(randomUser2InitialDeposit, randomUser2);
+        vm.deal(randomUser2, randomUser2InitialDeposit);
+        vault.depositAVAX{value: randomUser2InitialDeposit}();
 
         vm.stopPrank();
-
-        vm.startPrank(randomUser3);
-        uint256 randomUser3InitialDeposit = 1e18;
-        vm.deal(randomUser3, randomUser3InitialDeposit + 1000e18);
-        vault.depositNative{value: randomUser3InitialDeposit}();
-        // // WAVAX.deposit{value: randomUser3InitialDeposit}();
-        // // uint256 totalDeposits = randomUser1InitialDeposit + randomUser2InitialDeposit + randomUser3InitialDeposit;
-        // // assertEq(vault.totalAssets(), totalDeposits, "Total vault assets should match sum of User1 and User2 deposits");
-        // vm.stopPrank();
+        uint256 totalDeposits = randomUser1InitialDeposit + randomUser2InitialDeposit;
+        assertEq(vault.totalAssets(), totalDeposits, "Total vault assets should match sum of User1 and User2 deposits");
 
         // Withdraw from randomUser2
-        // vm.startPrank(randomUser2);
-        // uint256 randomUser2Withdrawal = 100e18;
-        // vault.withdraw(randomUser2Withdrawal, randomUser2, randomUser2);
-        // uint256 totalDepositsAfterWithdraw = totalDeposits - randomUser2Withdrawal;
-        // assertEq(
-        //     vault.balanceOf(randomUser2),
-        //     randomUser2InitialDeposit - randomUser2Withdrawal,
-        //     "User2's vault balance should be reduced by the withdrawal amount"
-        // );
-        // assertEq(
-        //     vault.totalAssets(),
-        //     totalDepositsAfterWithdraw,
-        //     "Total vault assets should be reduced by User2's withdrawal"
-        // );
-        // vm.stopPrank();
+        vm.startPrank(randomUser2);
+        uint256 randomUser2Withdrawal = 100e18;
+        vault.withdraw(randomUser2Withdrawal, randomUser2, randomUser2);
+        uint256 totalDepositsAfterWithdraw = totalDeposits - randomUser2Withdrawal;
+        assertEq(
+            vault.balanceOf(randomUser2),
+            randomUser2InitialDeposit - randomUser2Withdrawal,
+            "User2's vault balance should be reduced by the withdrawal amount"
+        );
+        assertEq(
+            vault.totalAssets(),
+            totalDepositsAfterWithdraw,
+            "Total vault assets should be reduced by User2's withdrawal"
+        );
+        vm.stopPrank();
 
         // // Stake and distribute rewards
         // vm.startPrank(address(0x69));

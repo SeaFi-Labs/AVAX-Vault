@@ -12,6 +12,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IWAVAX} from "./interfaces/WAVAX.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 /// @title WAVAXVault
 /// @notice This contract implements a vault for staking WAVAX tokens, offering functionalities to stake tokens,
@@ -26,6 +27,7 @@ contract WAVAXVault is
     AccessControlUpgradeable
 {
     using SafeERC20 for IERC20;
+    using Address for address;
 
     bytes32 public constant APPROVED_NODE_OPERATOR = keccak256("APPROVED_NODE_OPERATOR");
 
@@ -87,30 +89,33 @@ contract WAVAXVault is
         emit TargetAPRUpdated(targetAPR);
     }
 
-    function depositNative() external payable returns (uint256) {
-        console.log("ran", msg.value);
-        WAVAX.deposit{value: msg.value}(); // this sends the avax from the contract and the contract gets wAVAX
-        console.log("ran2");
+    function depositAVAX() public payable returns (uint256 shares) {
+        uint256 assets = msg.value;
+        // Check for rounding error since we round down in previewDeposit.
+        if ((shares = previewDeposit(assets)) == 0) {
+            revert("no shares");
+        }
 
-        return 0;
+        emit Deposit(msg.sender, msg.sender, assets, shares);
+
+        WAVAX.deposit{value: assets}();
+        _mint(msg.sender, shares);
+        return shares;
     }
 
-    // function redeemNative(uint256 shares, address receiver, address owner) public returns (uint256) {
-    //     require(receiver != address(0), "Invalid receiver");
-    //     require(shares > 0, "No shares to redeem");
+    function redeemAVAX(uint256 shares) public returns (uint256 assets) {
+        // Check for rounding error since we round down in previewRedeem.
+        if ((assets = previewRedeem(shares)) == 0) {
+            revert("no redeem");
+        }
+        _burn(msg.sender, shares);
 
-    //     // Call the existing redeem function to withdraw WAVAX
-    //     uint256 assets = redeem(shares, address(this), owner);
+        emit Withdraw(msg.sender, msg.sender, msg.sender, assets, shares);
 
-    //     // Unwrap WAVAX into AVAX
-    //     IWAVAX(underlying).withdraw(assets);
+        WAVAX.withdraw(assets);
 
-    //     // Transfer AVAX to the receiver
-    //     (bool success,) = receiver.call{value: assets}("");
-    //     require(success, "AVAX transfer failed");
-
-    //     return assets;
-    // }
+        Address.sendValue(payable(msg.sender), assets);
+    }
 
     /// @notice Stakes a specified amount on behalf of a node operator.
     /// @param amount The amount of WAVAX tokens to stake.
