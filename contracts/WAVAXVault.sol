@@ -73,6 +73,7 @@ contract WAVAXVault is
         targetAPR = 1405; // Starting target APR
         stakingTotalAssets = 0;
         WAVAX = IWAVAX(_wavax);
+        lastRewardUpdate = block.timestamp;
     }
 
     /// @notice Sets the maximum cap for WAVAX deposits in the vault.
