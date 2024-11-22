@@ -7,7 +7,7 @@ import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import "forge-std/Script.sol";
 
 contract MyScript is Script {
-    MockTokenWAVAX public ggpToken;
+    MockTokenWAVAX public WAVAX;
     WAVAXVault vault;
 
     function run() external {
@@ -19,14 +19,12 @@ contract MyScript is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        ggpToken = new MockTokenWAVAX(devAddress4);
-        Upgrades.deployUUPSProxy(
-            "WAVAXVault.sol", abi.encodeCall(WAVAXVault.initialize, (address(ggpToken), devAddress4))
-        );
+        WAVAX = new MockTokenWAVAX(devAddress4);
+        Upgrades.deployUUPSProxy("WAVAXVault.sol", abi.encodeCall(WAVAXVault.initialize, (address(WAVAX), devAddress4)));
 
-        ggpToken.transfer(devAddress1, 10000e18);
-        ggpToken.transfer(devAddress2, 10000e18);
-        ggpToken.transfer(devAddress3, 10000e18);
+        WAVAX.transfer(devAddress1, 10000e18);
+        WAVAX.transfer(devAddress2, 10000e18);
+        WAVAX.transfer(devAddress3, 10000e18);
 
         vm.stopBroadcast();
     }
