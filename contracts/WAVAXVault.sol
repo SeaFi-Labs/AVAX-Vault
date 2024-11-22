@@ -94,7 +94,7 @@ contract WAVAXVault is
         uint256 assets = msg.value;
         // Check for rounding error since we round down in previewDeposit.
         if ((shares = previewDeposit(assets)) == 0) {
-            revert("no shares");
+            revert("shares must be greater than 0");
         }
 
         emit Deposit(msg.sender, msg.sender, assets, shares);
@@ -109,13 +109,20 @@ contract WAVAXVault is
         if ((assets = previewRedeem(shares)) == 0) {
             revert("no redeem");
         }
+        console.log("shares2", shares);
         _burn(msg.sender, shares);
+
+        console.log("assets2", assets);
 
         emit Withdraw(msg.sender, msg.sender, msg.sender, assets, shares);
 
         WAVAX.withdraw(assets);
+        console.log("assets3", assets);
 
+        console.log("assets3", address(this).balance);
         Address.sendValue(payable(msg.sender), assets);
+        console.log("assets4", assets);
+        return assets;
     }
 
     /// @notice Stakes a specified amount on behalf of a node operator.
@@ -242,4 +249,9 @@ contract WAVAXVault is
     /// @dev Ensures that only the owner can authorize upgrades to the contract.
     /// @param newImplementation The address of the new contract implementation.
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    /// @notice only accept AVAX via fallback from the WAVAX contract
+    receive() external payable {
+        require(msg.sender == address(WAVAX));
+    }
 }
