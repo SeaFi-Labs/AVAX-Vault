@@ -108,70 +108,86 @@ contract WAVAXVaultTest2 is Test {
         vm.stopPrank();
 
         // // Stake and distribute rewards
-        // vm.startPrank(address(0x69));
-        // uint256 amountToStake = vault.totalAssets();
+        vm.startPrank(address(0x69));
+        uint256 amountToStake = vault.totalAssets();
+        vault.stakeOnNode(amountToStake, nodeOp1);
 
-        // uint256 stakingRewardsAt20PercentApy = vault.previewRewardsAtStakedAmount(amountToStake);
+        address _randomUser2 = randomUser2;
 
-        // assertApproxEqAbs(
-        //     stakingRewardsAt20PercentApy,
-        //     140e18,
-        //     1e18,
-        //     "Staking rewards should be approximately 140e18 which was manually calculated"
-        // );
+        assertEq(
+            vault.maxMint(_randomUser2),
+            vault.maxDeposit(_randomUser2),
+            "Mint and Deposit should be the same before ratio changes"
+        );
 
-        // address _randomUser2 = randomUser2;
+        // for stack to deep errors
+        address _nodeOp1 = nodeOp1;
 
-        // assertEq(
-        //     vault.maxMint(_randomUser2),
-        //     vault.maxDeposit(_randomUser2),
-        //     "Mint and Deposit should be the same before ratio changes"
-        // );
+        vm.warp(block.timestamp + 30 days);
+        uint256 BASIS_POINTS_DIVISOR = 10000;
+        uint256 DAYS_IN_YEAR = 365;
+        uint256 dailyRate = (vault.targetAPR() * 1e18) / DAYS_IN_YEAR; // Scale up by 1e18 to preserve decimals
+        uint256 thirtyDayYield = (vault.totalAssets() * dailyRate * 30) / (BASIS_POINTS_DIVISOR * 1e18);
 
-        // // for stack to deep errors
-        // address _nodeOp1 = nodeOp1;
-        // vault.stakeAndDistributeRewards(_nodeOp1);
-        // assertEq(
-        //     vault.totalAssets(),
-        //     amountToStake + stakingRewardsAt20PercentApy,
-        //     "Total assets should include staked amount plus rewards"
-        // );
-        // vm.stopPrank();
-        // assertEq(
-        //     vault.stakingTotalAssets(),
-        //     amountToStake + stakingRewardsAt20PercentApy,
-        //     "Total assets should include staked amount plus rewards"
-        // );
-        // vm.stopPrank();
+        // Calculate monthly yield
+        assertApproxEqAbs(
+            vault.getPendingRewards(), thirtyDayYield, 1e8, "Yield should be approx what id expect based on APR"
+        );
+        uint256 totalVaultWithRewards = vault.totalAssets() + vault.getPendingRewards();
 
-        // // Check max redeem and withdraw for randomUser2
-        // uint256 maxRedeemUser2 = vault.maxRedeem(randomUser2);
-        // uint256 maxWithdrawUser2 = vault.maxWithdraw(randomUser2);
-        // assertApproxEqAbs(
-        //     vault.previewWithdraw(maxWithdrawUser2),
-        //     maxRedeemUser2,
-        //     10,
-        //     "Preview withdraw should approximately equal max redeem"
-        // );
-        // assertApproxEqAbs(
-        //     vault.previewRedeem(maxRedeemUser2),
-        //     maxWithdrawUser2,
-        //     10,
-        //     "Preview redeem should approximately equal max withdraw"
-        // );
+        vault.updateRewards();
+        // Assert that pending rewards are reset to 0 after updateRewards is called
+        assertEq(vault.getPendingRewards(), 0, "Pending rewards should be 0 after updateRewards");
 
-        // WAVAX.transfer(_nodeOp1, stakingRewardsAt20PercentApy);
+        // Assert that totalVaultWithRewards equals total assets after rewards are updated
+        assertEq(
+            totalVaultWithRewards,
+            vault.totalAssets(),
+            "Total vault with rewards should equal total assets after update"
+        );
+        vault.updateRewards();
+        // Assert that pending rewards are reset to 0 after updateRewards is called
+        assertEq(vault.getPendingRewards(), 0, "Pending rewards should be 0 after updateRewards");
 
-        // vm.startPrank(_nodeOp1);
+        console.log(amountToStake, thirtyDayYield);
+        assertApproxEqAbs(
+            amountToStake + thirtyDayYield,
+            vault.stakingTotalAssets(),
+            1e8,
+            "staking vault with rewards should equal total assets after update"
+        );
 
-        // // deposit rewards into the vault
-        // WAVAX.approve(address(vault), stakingRewardsAt20PercentApy * 2);
-        // vault.depositFromStaking(stakingRewardsAt20PercentApy);
-        // assertEq(vault.totalAssets(), amountToStake + stakingRewardsAt20PercentApy, "Doesn't change the total assets");
-        // assertEq(
-        //     vault.getUnderlyingBalance(), stakingRewardsAt20PercentApy, "Correct amount of assets are in the vault"
-        // );
-        // assertEq(vault.stakingTotalAssets(), amountToStake, "Correct amount of assets are being staked");
+        vm.stopPrank();
+
+        // Check max redeem and withdraw for randomUser2
+        uint256 maxRedeemUser2 = vault.maxRedeem(_randomUser2);
+        uint256 maxWithdrawUser2 = vault.maxWithdraw(_randomUser2);
+        assertApproxEqAbs(
+            vault.previewWithdraw(maxWithdrawUser2),
+            maxRedeemUser2,
+            10,
+            "Preview withdraw should approximately equal max redeem"
+        );
+        assertApproxEqAbs(
+            vault.previewRedeem(maxRedeemUser2),
+            maxWithdrawUser2,
+            10,
+            "Preview redeem should approximately equal max withdraw"
+        );
+
+        WAVAX.transfer(_nodeOp1, thirtyDayYield);
+
+        vm.startPrank(_nodeOp1);
+
+        // deposit rewards into the vault
+        WAVAX.approve(address(vault), thirtyDayYield * 2);
+        vault.depositFromStaking(thirtyDayYield);
+        assertApproxEqAbs(vault.totalAssets(), amountToStake + thirtyDayYield, 100, "Doesn't change the total assets");
+        assertApproxEqAbs(
+            vault.getUnderlyingBalance(), thirtyDayYield, 100, "Correct amount of assets are in the vault"
+        );
+        assertApproxEqAbs(vault.stakingTotalAssets(), amountToStake, 100, "Correct amount of assets are being staked");
+
         // console.log(
         //     vault.maxMint(_randomUser2),
         //     vault.maxDeposit(_randomUser2),
