@@ -136,8 +136,12 @@ contract WAVAXVault is
         _stakeOnNode(amount, nodeOp);
     }
 
+    function updateRewards() external onlyOwnerOrApprovedNodeOperator {
+        _updateRewards();
+    }
     /// @notice Allows depositing tokens back into the vault from staking, adjusting the staking total assets accordingly.
     /// @param amount The amount of WAVAX tokens to deposit back into the vault from staking.
+
     function depositFromStaking(uint256 amount) external onlyOwnerOrApprovedNodeOperator {
         if (amount > stakingTotalAssets) {
             revert("Cant deposit more than the stakingTotalAssets");
@@ -157,7 +161,7 @@ contract WAVAXVault is
     function getPendingRewards() public view returns (uint256) {
         if (block.timestamp > lastRewardUpdate) {
             uint256 timeElapsed = block.timestamp - lastRewardUpdate;
-            uint256 newRewards = (stakingTotalAssets * targetAPR * timeElapsed) / (10000 * 365 days);
+            uint256 newRewards = (totalAssets() * targetAPR * timeElapsed) / (10000 * 365 days);
             return newRewards;
         }
         return 0;
