@@ -27,9 +27,10 @@ contract WAVAXVaultTest is Test {
         owner = address(this);
         WAVAX = new MockTokenWAVAX(owner);
 
-        address proxy =
-            Upgrades.deployUUPSProxy("WAVAXVault.sol", abi.encodeCall(WAVAXVault.initialize, (address(WAVAX), owner)));
-        vault = WAVAXVault(proxy);
+        address payable proxy = payable(
+            Upgrades.deployUUPSProxy("WAVAXVault.sol", abi.encodeCall(WAVAXVault.initialize, (address(WAVAX), owner)))
+        );
+        vault = WAVAXVault(payable(proxy));
 
         vault.grantRole(vault.APPROVED_NODE_OPERATOR(), nodeOp1);
         WAVAX.approve(address(vault), type(uint256).max);
@@ -130,8 +131,8 @@ contract WAVAXVaultTest is Test {
         // TODO why was this owner owner owenr?
         vm.expectRevert();
         vault.initialize(owner, owner);
-        address implementationAddress = Upgrades.getImplementationAddress(address(vault));
-        WAVAXVault implementation = WAVAXVault(implementationAddress);
+        address payable implementationAddress = payable(Upgrades.getImplementationAddress(address(vault)));
+        WAVAXVault implementation = WAVAXVault(payable(implementationAddress));
         vm.expectRevert();
         implementation.initialize(owner, owner);
     }
@@ -222,7 +223,7 @@ contract WAVAXVaultTest is Test {
         Upgrades.upgradeProxy(address(vault), "WAVAXVaultV2.sol", abi.encodeCall(WAVAXVault.setTargetAPR, 2000));
         address implAddressV2 = Upgrades.getImplementationAddress(address(vault));
 
-        WAVAXVaultV2 v2 = WAVAXVaultV2(address(vault));
+        WAVAXVaultV2 v2 = WAVAXVaultV2(payable(address(vault)));
         assertFalse(implAddressV2 == implAddressV1);
         assertEq(v2.newMethod(), "meow");
     }
