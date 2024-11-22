@@ -344,12 +344,10 @@ contract AVAXVaultTest is Test {
 
         // Deposit AVAX
         uint256 shares = vault.depositAVAX{value: depositAmount}();
-        console.log("Shares: ", shares);
         uint256 initialVaultBalance = 0;
         uint256 initialUserBalance = 0;
         // Redeem the shares and verify assets returned
         uint256 assets = vault.redeemAVAX(shares);
-        console.log("Assets: ", assets);
 
         uint256 expectedAssets = depositAmount; // Assuming 1:1 ratio for shares to AVAX
 
@@ -357,7 +355,6 @@ contract AVAXVaultTest is Test {
         assertEq(vault.balanceOf(randomUser1), 0, "User shares should be zero after redeeming all shares");
         assertEq(address(vault).balance, 0, "Vault's AVAX balance should decrease by redeemed amount");
         assertEq(randomUser1.balance, initialUserBalance + assets, "User balance should increase by redeemed amount");
-        console.log("Assets2: ", assets);
 
         vm.stopPrank();
     }
@@ -550,5 +547,123 @@ contract AVAXVaultTest is Test {
         assertEq(
             vault.balanceOf(randomUser1), shares - halfShares, "Remaining shares should match after partial redemption"
         );
+    }
+
+    function testRewardAccumulation() public {
+        uint256 depositAmount = 100e18;
+
+        // Deposit WAVAX
+        vault.deposit(depositAmount, owner);
+        assertEq(vault.totalAssets(), depositAmount, "Total assets mismatch after deposit");
+
+        // Advance time and calculate rewards
+        uint256 initialRewards = vault.getPendingRewards();
+        assertEq(initialRewards, 0, "Initial rewards should be zero");
+
+        vm.warp(block.timestamp + 1 days);
+        uint256 rewardsAfter1Day = vault.getPendingRewards();
+        assertGt(rewardsAfter1Day, 0, "Rewards should accumulate over time");
+
+        // Use external `updateRewards()` and verify total assets
+        vault.updateRewards();
+        assertEq(vault.totalAssets(), depositAmount + rewardsAfter1Day, "Total assets should include rewards");
+    }
+
+    function testStakeAndRewardFlow() public {
+        uint256 depositAmount = 200e18;
+
+        // Deposit and stake WAVAX
+        vault.deposit(depositAmount, owner);
+        vault.stakeOnNode(depositAmount, nodeOp1);
+        assertEq(vault.stakingTotalAssets(), depositAmount, "Staking total assets mismatch after staking");
+
+        // Advance time and calculate rewards
+        vm.warp(block.timestamp + 7 days);
+        uint256 rewards = vault.getPendingRewards();
+        assertGt(rewards, 0, "Rewards should accumulate for staked assets");
+
+        // Use external `updateRewards()` and validate staking total assets
+        vault.updateRewards();
+        assertEq(
+            vault.stakingTotalAssets(),
+            depositAmount + rewards,
+            "Staking total assets should include accumulated rewards"
+        );
+    }
+
+    function testRewardWithdraw() public {
+        uint256 depositAmount = 300e18;
+
+        // Deposit and stake WAVAX
+        vault.deposit(depositAmount, owner);
+        vault.stakeOnNode(depositAmount, nodeOp1);
+
+        // Advance time and accumulate rewards
+        vm.warp(block.timestamp + 10 days);
+        vault.updateRewards();
+
+        uint256 totalAssetsBeforeWithdraw = vault.totalAssets();
+        uint256 maxWithdrawable = vault.maxWithdraw(owner);
+
+        // Withdraw assets including rewards
+        uint256 withdrawnAssets = vault.withdraw(maxWithdrawable, owner, owner);
+        assertEq(withdrawnAssets, maxWithdrawable, "Withdrawn assets should match max withdrawable amount");
+
+        // Validate total assets after withdrawal
+        assertEq(
+            vault.totalAssets(), totalAssetsBeforeWithdraw - withdrawnAssets, "Total assets mismatch after withdrawal"
+        );
+    }
+
+    function testRewardEdgeCases() public {
+        // Test with minimal deposit
+        uint256 smallDeposit = 1e9;
+        vault.deposit(smallDeposit, owner);
+        vm.warp(block.timestamp + 1 days);
+        uint256 rewards = vault.getPendingRewards();
+        assertGt(rewards, 0, "Rewards should still accumulate for small deposits");
+
+        // Test with zero deposit
+        vault.updateRewards();
+        uint256 zeroDepositRewards = vault.getPendingRewards();
+        assertEq(zeroDepositRewards, 0, "No rewards should accumulate for zero deposits");
+    }
+
+    function testRewardDistributionWithMultipleDepositors() public {
+        // Depositor 1 deposits
+        uint256 deposit1 = 100e18;
+        vault.deposit(deposit1, owner);
+
+        // Depositor 2 deposits
+        address depositor2 = address(0x1234);
+        uint256 deposit2 = 200e18;
+        WAVAX.transfer(depositor2, deposit2);
+        vm.prank(depositor2);
+        WAVAX.approve(address(vault), deposit2);
+        vm.prank(depositor2);
+        vault.deposit(deposit2, depositor2);
+
+        // Advance time and update rewards
+        vm.warp(block.timestamp + 7 days);
+        vault.updateRewards();
+
+        uint256 rewards1 = vault.maxWithdraw(owner) - deposit1;
+        uint256 rewards2 = vault.maxWithdraw(depositor2) - deposit2;
+
+        assertGt(rewards1, 0, "Depositor 1 should have rewards");
+        assertGt(rewards2, 0, "Depositor 2 should have rewards");
+        assertGt(rewards2, rewards1, "Depositor 2 should have more rewards due to larger deposit");
+    }
+
+    function testOnlyOwnerOrApprovedNodeOperatorCanUpdateRewards() public {
+        // Test `updateRewards` for unauthorized access
+        address unauthorizedUser = address(0x999);
+        vm.expectRevert("Caller is not the owner or an approved node operator");
+        vm.prank(unauthorizedUser);
+        vault.updateRewards();
+
+        // Test `updateRewards` for authorized node operator
+        vm.prank(nodeOp1);
+        vault.updateRewards();
     }
 }
