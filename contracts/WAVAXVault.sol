@@ -35,7 +35,6 @@ contract WAVAXVault is
     event TargetAPRUpdated(uint256 newTargetAPR);
     event WithdrawnForStaking(address indexed caller, uint256 assets);
     event DepositedFromStaking(address indexed caller, uint256 amount);
-    event RewardsDistributed(uint256 amount);
 
     // address public WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
     IWAVAX public WAVAX;
@@ -92,36 +91,40 @@ contract WAVAXVault is
 
     function depositAVAX() public payable returns (uint256 shares) {
         uint256 assets = msg.value;
+
+        uint256 maxAssets = maxDeposit(_msgSender());
+        if (assets > maxAssets) {
+            revert ERC4626ExceededMaxDeposit(_msgSender(), assets, maxAssets);
+        }
         // Check for rounding error since we round down in previewDeposit.
         if ((shares = previewDeposit(assets)) == 0) {
             revert("shares must be greater than 0");
         }
 
-        emit Deposit(msg.sender, msg.sender, assets, shares);
+        emit Deposit(_msgSender(), _msgSender(), assets, shares);
 
         WAVAX.deposit{value: assets}();
-        _mint(msg.sender, shares);
+        _mint(_msgSender(), shares);
+
         return shares;
     }
 
     function redeemAVAX(uint256 shares) public returns (uint256 assets) {
+        uint256 maxShares = maxRedeem(_msgSender());
+        if (shares > maxShares) {
+            revert ERC4626ExceededMaxRedeem(_msgSender(), shares, maxShares);
+        }
         // Check for rounding error since we round down in previewRedeem.
         if ((assets = previewRedeem(shares)) == 0) {
             revert("no redeem");
         }
-        console.log("shares2", shares);
-        _burn(msg.sender, shares);
-
-        console.log("assets2", assets);
-
-        emit Withdraw(msg.sender, msg.sender, msg.sender, assets, shares);
+        _burn(_msgSender(), shares);
 
         WAVAX.withdraw(assets);
-        console.log("assets3", assets);
 
-        console.log("assets3", address(this).balance);
-        Address.sendValue(payable(msg.sender), assets);
-        console.log("assets4", assets);
+        Address.sendValue(payable(_msgSender()), assets);
+        emit Withdraw(_msgSender(), _msgSender(), _msgSender(), assets, shares);
+
         return assets;
     }
 
@@ -237,13 +240,9 @@ contract WAVAXVault is
     }
 
     function _updateRewards() internal {
-        // TODO make sure this logic works correctly
-        if (block.timestamp > lastRewardUpdate) {
-            uint256 timeElapsed = block.timestamp - lastRewardUpdate;
-            uint256 newRewards = (totalAssets() * targetAPR * timeElapsed) / (10000 * 365 days);
-            stakingTotalAssets += newRewards; // Increase total assets
-            lastRewardUpdate = block.timestamp;
-        }
+        uint256 newRewards = getPendingRewards();
+        stakingTotalAssets += newRewards; // Increase total assets
+        lastRewardUpdate = block.timestamp;
     }
 
     /// @dev Ensures that only the owner can authorize upgrades to the contract.
@@ -252,6 +251,6 @@ contract WAVAXVault is
 
     /// @notice only accept AVAX via fallback from the WAVAX contract
     receive() external payable {
-        require(msg.sender == address(WAVAX));
+        require(_msgSender() == address(WAVAX));
     }
 }
