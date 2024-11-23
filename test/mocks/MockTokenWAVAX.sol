@@ -18,10 +18,7 @@ contract MockTokenWAVAX is ERC20 {
     }
 
     function withdraw(uint256 _amount) external {
-        console.log(msg.sender, _amount);
-        console.log(address(this).balance);
         _burn(msg.sender, _amount);
-        console.log("burn");
         emit Withdrawal(msg.sender, _amount);
 
         (bool success,) = msg.sender.call{value: _amount}("");

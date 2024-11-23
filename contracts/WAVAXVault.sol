@@ -211,19 +211,6 @@ contract WAVAXVault is
         return convertToShares(maxWithdrawAmount);
     }
 
-    /// @notice Calculates the rewards based on the current staked amount.
-    /// @return The amount of rewards generated based on the current staked assets.
-    function getRewardsBasedOnCurrentStakedAmount() public view returns (uint256) {
-        return previewRewardsAtStakedAmount(stakingTotalAssets);
-    }
-
-    /// @notice Previews the rewards for a given stake amount based on the target APR.
-    /// @param stakeAmount The amount of WAVAX tokens staked.
-    /// @return The calculated rewards for the given staked amount.
-    function previewRewardsAtStakedAmount(uint256 stakeAmount) public view returns (uint256) {
-        return (targetAPR * stakeAmount) / 10000 / 13;
-    }
-
     /// @notice Calculates the APY from the target APR considering compounding effects.
     /// @return The calculated APY as a percentage in basis points.
     function calculateAPYFromAPR() public view returns (uint256) {
