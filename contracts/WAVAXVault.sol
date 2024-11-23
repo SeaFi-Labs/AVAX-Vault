@@ -37,7 +37,6 @@ contract WAVAXVault is
     event DepositedFromStaking(address indexed caller, uint256 amount);
 
     // address public WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
-    IWAVAX public WAVAX;
     uint256 public stakingTotalAssets;
     uint256 public AVAXCap;
     uint256 public targetAPR;
@@ -71,7 +70,6 @@ contract WAVAXVault is
         AVAXCap = 20000e18; // Starting asset cap
         targetAPR = 1405; // Starting target APR
         stakingTotalAssets = 0;
-        WAVAX = IWAVAX(_wavax);
         lastRewardUpdate = block.timestamp;
     }
 
@@ -107,7 +105,7 @@ contract WAVAXVault is
 
         emit Deposit(_msgSender(), _msgSender(), assets, shares);
 
-        WAVAX.deposit{value: assets}();
+        IWAVAX(asset()).deposit{value: assets}();
         _mint(_msgSender(), shares);
 
         return shares;
@@ -129,7 +127,7 @@ contract WAVAXVault is
         }
         _burn(_msgSender(), shares);
 
-        WAVAX.withdraw(assets);
+        IWAVAX(asset()).withdraw(assets);
 
         Address.sendValue(payable(_msgSender()), assets);
         emit Withdraw(_msgSender(), _msgSender(), _msgSender(), assets, shares);
@@ -255,6 +253,6 @@ contract WAVAXVault is
 
     /// @notice only accept AVAX via fallback from the WAVAX contract
     receive() external payable {
-        require(_msgSender() == address(WAVAX));
+        require(_msgSender() == address(asset()));
     }
 }
