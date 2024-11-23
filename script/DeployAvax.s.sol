@@ -15,7 +15,7 @@ contract MyScript is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         Upgrades.deployUUPSProxy(
-            "AVAXVault.sol", abi.encodeCall(WAVAXVault.initialize, (WAVAXMainnet, multisigAVAXVault))
+            "WAVAXVault.sol", abi.encodeCall(WAVAXVault.initialize, (WAVAXMainnet, multisigAVAXVault))
         );
         // vault = AVAXVault(proxy);
 
