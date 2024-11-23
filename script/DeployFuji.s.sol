@@ -29,3 +29,5 @@ contract MyScript is Script {
         vm.stopBroadcast();
     }
 }
+
+// 0x6af383c290d54114327C2087c1983cC9a3bf051d fuji contract
