@@ -128,7 +128,6 @@ contract WAVAXVaultTest is Test {
     }
 
     function testInitalization() public {
-        // TODO why was this owner owner owenr?
         vm.expectRevert();
         vault.initialize(owner, owner);
         address payable implementationAddress = payable(Upgrades.getImplementationAddress(address(vault)));

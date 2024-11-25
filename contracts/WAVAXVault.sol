@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.20;
 
-import "forge-std/console.sol";
 
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
@@ -235,7 +234,7 @@ contract WAVAXVault is
     function _stakeOnNode(uint256 amount, address nodeOp) internal {
         _checkRole(APPROVED_NODE_OPERATOR, nodeOp);
         stakingTotalAssets += amount;
-        IERC20(asset()).safeTransfer(nodeOp, amount); // TODO MAKE SURE THIS IS GOOD
+        IERC20(asset()).safeTransfer(nodeOp, amount); 
         emit WithdrawnForStaking(nodeOp, amount);
     }
 
