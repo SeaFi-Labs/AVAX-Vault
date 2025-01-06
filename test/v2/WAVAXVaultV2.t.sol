@@ -48,7 +48,7 @@ contract WAVAXVaultTest is Test {
         if (anyone == owner || anyone == nodeOp1 || anyone == rewardsSyncer) {
             vault.updateRewards();
         } else {
-            vm.expectRevert();
+            vm.expectRevert(bytes("Unauthorized rewards updater account"));
             vault.updateRewards();
         }
     }
