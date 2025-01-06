@@ -51,10 +51,11 @@ contract WAVAXVaultV2 is
     }
 
     /// @notice Restricts functions to the contract owner or rewards syncer only.
-    modifier onlyOwnerOrRewardsSyncer() {
+    modifier onlyRewardsUpdater() {
         require(
-            owner() == _msgSender() || hasRole(REWARDS_SYNCER, _msgSender()),
-            "Caller is not the owner or rewards syncer"
+            owner() == _msgSender() || hasRole(APPROVED_NODE_OPERATOR, _msgSender())
+                || hasRole(REWARDS_SYNCER, _msgSender()),
+            "Unauthorized rewards updater account"
         );
         _;
     }
@@ -153,7 +154,7 @@ contract WAVAXVaultV2 is
 
     /// @notice Updates the rewards based on the time elapsed since the last update.
     /// @dev Adds the calculated pending rewards to the total staking assets and updates the timestamp.
-    function updateRewards() external onlyOwnerOrApprovedNodeOperator onlyOwnerOrRewardsSyncer {
+    function updateRewards() external onlyRewardsUpdater {
         _updateRewards();
     }
     /// @notice Allows depositing tokens back into the vault from staking, adjusting the staking total assets accordingly.
