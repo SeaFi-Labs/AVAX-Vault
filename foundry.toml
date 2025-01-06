@@ -3,7 +3,6 @@ libs = ['lib']
 out = 'out'
 solc = "0.8.20"
 src = 'src'
-
 build_info = true
 extra_output = ["storageLayout"]
 
