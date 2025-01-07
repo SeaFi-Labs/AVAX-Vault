@@ -6,7 +6,7 @@ import "forge-std/console.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 import {WAVAXVault} from "../contracts/WAVAXVault.sol";
-import {WAVAXVaultV2} from "./mocks/WAVAXVaultV2.sol";
+import {WAVAXVaultUpgrade} from "./mocks/WAVAXVaultUpgrade.sol";
 import {MockTokenWAVAX} from "./mocks/MockTokenWAVAX.sol";
 
 contract WAVAXVaultTest is Test {
@@ -163,10 +163,10 @@ contract WAVAXVaultTest is Test {
         address implAddressV1 = Upgrades.getImplementationAddress(address(vault));
 
         assertEq(vault.targetAPR(), 1405);
-        Upgrades.upgradeProxy(address(vault), "WAVAXVaultV2.sol", abi.encodeCall(WAVAXVault.setTargetAPR, 2000));
+        Upgrades.upgradeProxy(address(vault), "WAVAXVaultUpgrade.sol", abi.encodeCall(WAVAXVault.setTargetAPR, 2000));
         address implAddressV2 = Upgrades.getImplementationAddress(address(vault));
 
-        WAVAXVaultV2 v2 = WAVAXVaultV2(payable(address(vault)));
+        WAVAXVaultUpgrade v2 = WAVAXVaultUpgrade(payable(address(vault)));
         assertFalse(implAddressV2 == implAddressV1);
         assertEq(v2.newMethod(), "meow");
     }

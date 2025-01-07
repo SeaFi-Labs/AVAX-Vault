@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
@@ -9,7 +9,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {IWAVAX} from "./interfaces/WAVAX.sol";
+import {IWAVAX} from "../interfaces/WAVAX.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 /// @title WAVAXVault
@@ -17,7 +17,7 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 ///         distribute rewards, and manage deposits from staking with a focus on access control and upgradeability.
 /// @dev The contract uses OpenZeppelin's upgradeable contract patterns, including ERC4626 for tokenized vault,
 ///      UUPS for upgradeability, Ownable2Step for ownership management, and AccessControl for role-based permissions.
-contract WAVAXVault is
+contract WAVAXVaultV2 is
     Initializable,
     Ownable2StepUpgradeable,
     ERC4626Upgradeable,
@@ -28,6 +28,7 @@ contract WAVAXVault is
     using Address for address;
 
     bytes32 public constant APPROVED_NODE_OPERATOR = keccak256("APPROVED_NODE_OPERATOR");
+    bytes32 public constant REWARDS_SYNCER = keccak256("REWARDS_SYNCER");
 
     event AVAXCapUpdated(uint256 newMax);
     event TargetAPRUpdated(uint256 newTargetAPR);
@@ -45,6 +46,16 @@ contract WAVAXVault is
         require(
             owner() == _msgSender() || hasRole(APPROVED_NODE_OPERATOR, _msgSender()),
             "Caller is not the owner or an approved node operator"
+        );
+        _;
+    }
+
+    /// @notice Restricts functions to the contract owner or rewards syncer only.
+    modifier onlyRewardsUpdater() {
+        require(
+            owner() == _msgSender() || hasRole(APPROVED_NODE_OPERATOR, _msgSender())
+                || hasRole(REWARDS_SYNCER, _msgSender()),
+            "Unauthorized rewards updater account"
         );
         _;
     }
@@ -143,7 +154,7 @@ contract WAVAXVault is
 
     /// @notice Updates the rewards based on the time elapsed since the last update.
     /// @dev Adds the calculated pending rewards to the total staking assets and updates the timestamp.
-    function updateRewards() external onlyOwnerOrApprovedNodeOperator {
+    function updateRewards() external onlyRewardsUpdater {
         _updateRewards();
     }
     /// @notice Allows depositing tokens back into the vault from staking, adjusting the staking total assets accordingly.
